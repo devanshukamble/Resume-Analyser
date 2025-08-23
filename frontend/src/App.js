@@ -14,7 +14,6 @@ function App() {
   const [error, setError] = useState('');
   const [showManageModal, setShowManageModal] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
-  const [newProfileSkills, setNewProfileSkills] = useState('');
   const [modalError, setModalError] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -109,14 +108,8 @@ function App() {
     setModalError('');
 
     try {
-      const skillsArray = newProfileSkills.split(',').map(skill => skill.trim()).filter(skill => skill);
-      
       const response = await axios.post('http://localhost:5000/api/job-profiles', {
-        name: newProfileName.trim(),
-        required_skills: skillsArray,
-        preferred_skills: [],
-        experience_keywords: [],
-        education_keywords: []
+        name: newProfileName.trim()
       });
 
       // Refresh job profiles list
@@ -124,7 +117,6 @@ function App() {
       
       // Reset form
       setNewProfileName('');
-      setNewProfileSkills('');
       setModalError('');
       
       toast.success('Profile created successfully!');
@@ -160,7 +152,6 @@ function App() {
   const closeModal = () => {
     setShowManageModal(false);
     setNewProfileName('');
-    setNewProfileSkills('');
     setModalError('');
   };
 
@@ -495,23 +486,6 @@ function App() {
                 />
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.875rem', fontWeight: '500' }}>Required Skills (comma-separated)</label>
-                <textarea
-                  value={newProfileSkills}
-                  onChange={(e) => setNewProfileSkills(e.target.value)}
-                  placeholder="e.g., React, JavaScript, CSS, HTML, Node.js"
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    resize: 'vertical'
-                  }}
-                />
-              </div>
 
               {modalError && (
                 <div style={{ color: '#dc2626', fontSize: '0.875rem', marginBottom: '12px' }}>

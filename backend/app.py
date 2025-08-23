@@ -317,6 +317,73 @@ def get_job_profiles():
         })
     return jsonify(profiles)
 
+def generate_job_profile_with_gemini(job_role):
+    """Use Gemini to generate job profile skills and keywords based on job role"""
+    prompt = f"""
+    Based on the job role "{job_role}", generate a comprehensive job profile with relevant skills and keywords.
+    
+    Please provide the response in the following JSON structure:
+    {{
+        "required_skills": ["list of 8-12 essential technical and professional skills for this role"],
+        "preferred_skills": ["list of 6-10 additional skills that would be beneficial"],
+        "experience_keywords": ["list of 6-8 action words/verbs commonly found in resumes for this role"],
+        "education_keywords": ["list of 4-6 educational backgrounds or fields relevant to this role"]
+    }}
+    
+    Guidelines:
+    - Focus on current industry standards and requirements
+    - Include both technical and soft skills where appropriate
+    - Make skills specific and relevant to the role
+    - Use lowercase for consistency
+    - Return only valid JSON, no additional text
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        response_text = ""
+        if response.candidates:
+            for candidate in response.candidates:
+                parts = candidate.content.parts
+                if parts:
+                    for part in parts:
+                        if part.text:
+                            response_text += part.text
+        else:
+            response_text = response.text
+        
+        response_text = response_text.strip()
+        
+        # Remove markdown code blocks if present
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.startswith('```'):
+            response_text = response_text[3:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        
+        response_text = response_text.strip()
+        
+        # Parse JSON response
+        profile_data = json.loads(response_text)
+        
+        # Validate required fields
+        required_fields = ["required_skills", "preferred_skills", "experience_keywords", "education_keywords"]
+        for field in required_fields:
+            if field not in profile_data:
+                profile_data[field] = []
+        
+        return profile_data
+        
+    except Exception as e:
+        print(f"Error generating profile with Gemini: {e}")
+        # Return default structure if Gemini fails
+        return {
+            "required_skills": [],
+            "preferred_skills": [],
+            "experience_keywords": [],
+            "education_keywords": []
+        }
+
 @app.route('/api/job-profiles', methods=['POST'])
 def create_job_profile():
     try:
@@ -332,13 +399,16 @@ def create_job_profile():
         if profile_id in JOB_PROFILES:
             return jsonify({"error": "Profile with this name already exists"}), 400
         
-        # Create new profile with default structure
+        # Generate profile data using Gemini
+        gemini_profile = generate_job_profile_with_gemini(data['name'])
+        
+        # Create new profile with Gemini-generated data
         new_profile = {
             "name": data['name'],
-            "required_skills": data.get('required_skills', []),
-            "preferred_skills": data.get('preferred_skills', []),
-            "experience_keywords": data.get('experience_keywords', []),
-            "education_keywords": data.get('education_keywords', [])
+            "required_skills": gemini_profile.get('required_skills', []),
+            "preferred_skills": gemini_profile.get('preferred_skills', []),
+            "experience_keywords": gemini_profile.get('experience_keywords', []),
+            "education_keywords": gemini_profile.get('education_keywords', [])
         }
         
         # Add to JOB_PROFILES
@@ -347,7 +417,7 @@ def create_job_profile():
         return jsonify({
             "id": profile_id,
             "name": new_profile["name"],
-            "message": "Profile created successfully"
+            "message": "Profile created successfully with AI-generated skills"
         }), 201
         
     except Exception as e:
